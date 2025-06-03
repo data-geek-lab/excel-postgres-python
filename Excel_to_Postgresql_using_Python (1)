@@ -1,0 +1,213 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "df4066f0-e399-405f-887d-2670ed90d540",
+   "metadata": {},
+   "source": [
+    "## How to Connect Excel to PostgreSQL Using Python (2025)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "405cbfbe-4f93-45da-a0e7-96cdd073daad",
+   "metadata": {},
+   "source": [
+    "# Quick Tip: If you're using Anaconda like I am, and you get an error for psycopg2, just run this:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "99efcea8-4209-42ec-bc02-a4a0ef85e3fa",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "pip install psycopg2-binary"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "aad9631e-466b-4528-ad06-a1d48260b4e7",
+   "metadata": {},
+   "source": [
+    "### STEP 1: IMPORT THE LIBRARIES"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "9b5af486-b113-4977-814f-d59fc50c0138",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import pandas as pd\n",
+    "import psycopg2"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "54334c0e-39bc-4ef5-8bcc-1b21689a473b",
+   "metadata": {},
+   "source": [
+    "### STEP 2: LOAD THE EXCEL DATA"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "cf47b78b-227d-4b22-b54c-01b544a7c9cc",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "excel_file = 'your_dataset_name.xlsx'  # Replace with your Excel file name\n",
+    "df = pd.read_excel(excel_file)\n",
+    "df.head(5)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "c410c3e7-19d4-47d0-9d7c-8a40106c663e",
+   "metadata": {},
+   "source": [
+    "### STEP 3: CONNECT TO POSTGRESQL DATABASE\n",
+    "\n",
+    "\"You’ll need your database name, username, and password here. If PostgreSQL is installed locally, 'localhost' is the host.\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "3e6266c2-9a49-4d5d-9023-2422390f2964",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "conn = psycopg2.connect(\n",
+    "    host='localhost', # replace with your host name\n",
+    "    database='your_database_name', # replace with your database name\n",
+    "    user='postgres', # replace with your_username\n",
+    "    password='your_password' # replace with your password\n",
+    ")\n",
+    "cursor = conn.cursor()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "f5ffec04-4faa-4387-92da-fa25d02d3728",
+   "metadata": {},
+   "source": [
+    "### STEP 4: Create a table in PostgreSQL (run this only once)\n",
+    "\n",
+    "\"We create a new table with the structure matching our Excel columns. PostgreSQL uses SERIAL for auto-incrementing IDs.\") Remeber only do this step if you do not have a table created for your database. Replace the column names with your column names along with the data types. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "79f66c6f-e8a2-4e51-ba9f-366e3faa4761",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "create_table_query = \"\"\"\n",
+    "CREATE TABLE IF NOT EXISTS sales (\n",
+    "    customer_id INTEGER, \n",
+    "    item TEXT,\n",
+    "    date_time TIMESTAMP,\n",
+    "    qty INTEGER,\n",
+    "    price NUMERIC\n",
+    ")\n",
+    "\"\"\"\n",
+    "cursor.execute(create_table_query)\n",
+    "conn.commit()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "95c3a579-61a0-4a15-8711-810447e56c70",
+   "metadata": {},
+   "source": [
+    "### Step 5: Prepare and insert data\n",
+    "### Ensure data types are correct\n",
+    "\n",
+    "\"Each row of the Excel data is inserted into the PostgreSQL table.\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "1e50a8e9-2efb-4c90-983e-59843a7d8834",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df[\"date_time\"] = pd.to_datetime(df[\"date_time\"])\n",
+    "\n",
+    "# Convert DataFrame to list of tuples\n",
+    "data_tuples = list(df.itertuples(index=False, name=None))\n",
+    "\n",
+    "# Define the INSERT query\n",
+    "insert_query = \"\"\"\n",
+    "INSERT INTO sales (customer_id, item, date_time, qty, price)\n",
+    "VALUES (%s, %s, %s, %s, %s)\n",
+    "\"\"\"\n",
+    "\n",
+    "# Execute the query\n",
+    "cursor.executemany(insert_query, data_tuples)\n",
+    "conn.commit()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "3116efd4-dae5-4339-a3c7-cb6a411ee96c",
+   "metadata": {},
+   "source": [
+    "### STEP 6: CLOSE CONNECTION\n",
+    "\n",
+    "\"It’s always good practice to close your database connections when you’re done.\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "168c6f3f-2a2d-4c3f-bb56-84f8b0756ec9",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "cursor.close()\n",
+    "conn.close()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "c04fd100-7eb8-4260-b9fb-1402d026ff6c",
+   "metadata": {},
+   "source": [
+    "🔔 *Don’t forget to LIKE & SUBSCRIBE for more Python & Data Analysis tutorials!* Subscribe here: https://www.youtube.com/@datageekismyname\n",
+    "\n",
+    "☕Enjoying the Content? Support the channel here: https://buymeacoffee.com/datageekismyname\n",
+    "\n",
+    "Watch the full video for that goes step-by-step on this same code: "
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.12.7"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
